@@ -334,18 +334,53 @@
                 }
             },
 
+            showDeleteConfirm(message, onConfirm) {
+                const html = `
+                    <div class="modal">
+                        <div class="modal-content" style="max-width: 300px;">
+                            <h2 class="modal-title" style="font-size: 18px; margin-bottom: 24px;">Bestätigung</h2>
+                            <p style="text-align: center; color: #6b7280; margin-bottom: 24px;">${message}</p>
+                            <div class="btn-group">
+                                <button onclick="document.getElementById('modal-container').innerHTML=''; app.render();" style="flex: 1;">Abbrechen</button>
+                                <button class="danger" onclick="document.getElementById('modal-container').innerHTML=''; ${onConfirm}" style="flex: 1;">Löschen</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('modal-container').innerHTML = html;
+            },
+
             deleteProject(id) {
-                if (!confirm('Projekt wirklich löschen?')) return;
+                console.log('deleteProject called with id:', id);
+                this.showDeleteConfirm('Projekt wirklich löschen?', `app.confirmDeleteProject('${id}')`);
+            },
+
+            confirmDeleteProject(id) {
+                console.log('Löschen bestätigt, lösche Projekt:', id);
                 this.projects = this.projects.filter(p => p.id !== id);
                 if (this.activeTimer?.projectId === id) this.activeTimer = null;
+                this.showManualEntryForm = false;
+                this.showNewProjectForm = false;
                 this.save();
                 this.render();
+                console.log('Projekt gelöscht');
+            },
+
+            deleteProjectSafe(id, event) {
+                if (event) {
+                    event.stopPropagation();
+                }
+                this.deleteProject(id);
             },
 
             deleteMember(id) {
-                if (!confirm('Teammitglied wirklich löschen?')) return;
+                this.showDeleteConfirm('Teammitglied wirklich löschen?', `app.confirmDeleteMember('${id}')`);
+            },
+
+            confirmDeleteMember(id) {
                 this.teamMembers = this.teamMembers.filter(m => m.id !== id);
                 if (this.currentUser?.id === id) this.currentUser = null;
+                this.showAddTeamMemberForm = false;
                 this.save();
                 this.render();
             },
@@ -610,8 +645,13 @@
                             </div>
                             ${isExpanded ? `
                                 <div class="expand-content">
-                                    <div class="stats"><strong>Arbeitsstunden:</strong> ${stats.totalHours.toFixed(2)} h</div>
-                                    <div class="stats"><strong>Verbrauchte Kosten:</strong> ${stats.totalCost.toFixed(2)} €</div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                        <div>
+                                            <div class="stats"><strong>Arbeitsstunden:</strong> ${stats.totalHours.toFixed(2)} h</div>
+                                            <div class="stats"><strong>Verbrauchte Kosten:</strong> ${stats.totalCost.toFixed(2)} €</div>
+                                        </div>
+                                        <button class="danger" onclick="app.deleteProjectSafe('${p.id}', event)">🗑️ Löschen</button>
+                                    </div>
                                     ${p.budget > 0 ? `
                                         <div class="stats">
                                             <strong>Projekt-Budget:</strong> ${p.budget.toFixed(2)} €
