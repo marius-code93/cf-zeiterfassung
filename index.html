@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Zeiterfassung">
+    <title>Zeiterfassung</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(to bottom right, #eff6ff, #e0e7ff); min-height: 100vh; padding: 12px; }
+        .container { max-width: 1024px; margin: 0 auto; }
+        .card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 12px; }
+        h2 { font-size: 20px; font-weight: bold; color: #1f2937; margin-bottom: 12px; }
+        h3 { font-size: 16px; font-weight: bold; color: #4b5563; margin-bottom: 8px; }
+        .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+        .tab { padding: 8px; background: #f3f4f6; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; color: #4b5563; cursor: pointer; }
+        .tab.active { background: #4f46e5; color: white; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3); }
+        .project { background: white; border-radius: 16px; padding: 12px; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .project-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .project-name { font-size: 16px; font-weight: bold; color: #1f2937; display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+        .project-name span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .project-note { font-size: 12px; color: #6b7280; margin-left: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .timer { font-size: 20px; font-family: 'Courier New', monospace; color: #4f46e5; font-weight: bold; margin-left: auto; }
+        button { background: #4f46e5; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        button:active { transform: scale(0.95); }
+        button.stop { background: #ef4444; }
+        button.start { background: #10b981; }
+        button.add { background: #10b981; width: 100%; }
+        button.secondary { background: #6b7280; }
+        button.danger { background: #ef4444; padding: 6px 12px; font-size: 12px; }
+        button.small { padding: 6px 12px; font-size: 12px; }
+        input, select, textarea { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px; margin-bottom: 8px; }
+        textarea { resize: none; font-family: inherit; }
+        .hidden { display: none; }
+        .btn-group { display: flex; gap: 8px; margin-top: 8px; }
+        .icon-btn { padding: 6px; min-width: 32px; }
+        .user-badge { display: inline-flex; align-items: center; gap: 8px; background: #eef2ff; padding: 4px 12px; border-radius: 8px; }
+        .user-avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px; }
+        .user-name { font-size: 14px; font-weight: 600; color: #4338ca; }
+        .progress-bar { width: 100%; height: 10px; background: #e5e7eb; border-radius: 5px; overflow: hidden; margin: 8px 0; }
+        .progress-fill { height: 100%; transition: width 0.3s; }
+        .progress-fill.green { background: #10b981; }
+        .progress-fill.orange { background: #f59e0b; }
+        .progress-fill.red { background: #ef4444; }
+        .stats { font-size: 14px; color: #4b5563; margin: 4px 0; }
+        .member-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; }
+        .member-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; flex-shrink: 0; }
+        .member-info { flex: 1; min-width: 0; }
+        .member-name { font-size: 16px; font-weight: bold; color: #1f2937; }
+        .member-rate { font-size: 14px; color: #6b7280; }
+        .entry { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+        .entry-header { display: flex; justify-content: space-between; align-items: center; }
+        .entry-project { font-weight: bold; font-size: 14px; color: #1f2937; }
+        .entry-duration { font-family: 'Courier New', monospace; font-weight: bold; color: #4f46e5; font-size: 14px; }
+        .entry-note { font-size: 12px; color: #6b7280; margin-top: 4px; margin-left: 16px; }
+        .date-group { border: 2px solid #f3f4f6; border-radius: 12px; padding: 12px; margin-bottom: 16px; }
+        .date-header { font-size: 14px; font-weight: bold; color: #1f2937; margin-bottom: 8px; }
+        .expandable { cursor: pointer; }
+        .expand-content { margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; }
+        .info-box { background: #eff6ff; border: 2px solid #bfdbfe; border-radius: 12px; padding: 12px; font-size: 12px; color: #1e40af; margin-top: 16px; }
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .modal-content { background: white; border-radius: 20px; padding: 24px; max-width: 400px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+        .modal-title { font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 16px; }
+        .user-select-btn { width: 100%; padding: 16px; border: 2px solid #e5e7eb; border-radius: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; background: white; cursor: pointer; color: #1f2937; }
+        .user-select-btn:hover { border-color: #4f46e5; background: #f5f3ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+                <h1>⏱️ Zeiterfassung</h1>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button onclick="location.reload()" style="background: #6366f1; padding: 8px 16px; font-size: 12px;">🔄 Refresh</button>
+                    <button onclick="app.syncNow()" style="background: #8b5cf6; padding: 8px 16px; font-size: 12px;">☁️ Sync</button>
+                    <div id="current-user-display"></div>
+                </div>
+            </div>
+            <div class="tabs">
+                <button class="tab active" onclick="app.showTab('projects')">⏱️ Projekte</button>
+                <button class="tab" onclick="app.showTab('overview')">📊 Übersicht</button>
+                <button class="tab" onclick="app.showTab('history')">📅 Verlauf</button>
+                <button class="tab" onclick="app.showTab('team')">👥 Team</button>
+            </div>
+        </div>
+
+        <div id="projects-view">
+            <div id="project-list"></div>
+        </div>
+
+        <div id="overview-view" class="hidden">
+            <div id="overview-list"></div>
+        </div>
+
+        <div id="history-view" class="hidden">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2>Zeiteinträge</h2>
+                    <button onclick="app.exportXLSX()" class="small">📥 Excel</button>
+                </div>
+                <div id="history-list"></div>
+            </div>
+        </div>
+
+        <div id="team-view" class="hidden">
+            <div id="team-list"></div>
+        </div>
+
+        <div class="info-box" style="background: #f9fafb; border-color: #d1d5db;">
+            <strong>💾 Cloud Modus</strong><br>
+            <span style="color: #4b5563;">Daten werden automatisch mit Firebase synchronisiert.</span><br>
+            <button onclick="app.clearLocalData()" style="margin-top: 8px; background: #ef4444; padding: 6px 12px; font-size: 12px;">🔄 Lokale Daten zurücksetzen</button>
+        </div>
+    </div>
+
+    <div id="modal-container"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDM1Pu5sGg6UAclTeunfHFeWV43NIleO8k",
+            authDomain: "cf-zeiterfassung.firebaseapp.com",
+            projectId: "cf-zeiterfassung",
+            storageBucket: "cf-zeiterfassung.firebasestorage.app",
+            messagingSenderId: "144251591107",
+            appId: "1:144251591107:web:00ee347fcef38eb5c5c576"
+        };
+
+        let db = null;
+        let firebaseReady = false;
+
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            firebaseReady = true;
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase init error:', error);
+        }
+
+        const app = {
+            projects: [],
+            teamMembers: [],
+            currentUser: null,
+            userProjectVisibility: {},
+            dailyEntries: [],
+            allEntries: [],
+            activeTimer: null,
+            lastResetDate: null,
+            currentView: 'projects',
+            expandedProjects: {},
+            showManualEntryForm: false,
+            showNewProjectForm: false,
+            showAddTeamMemberForm: false,
+            overviewSearchQuery: '',
+            newProjectType: 'Extern',
+
+            async init() {
+                await this.loadData();
+                this.repairData(); // Daten reparieren
+                this.checkMidnightReset();
+                setInterval(() => this.updateTimers(), 1000); // Nur Timer aktualisieren
+                this.render();
+                
+                if (this.teamMembers.length > 0 && !this.currentUser) {
+                    this.showUserSelect();
+                }
+            },
+
+            repairData() {
+                // Stelle sicher, dass alle Projekte gültige IDs haben
+                this.projects = this.projects.filter(p => p && p.id && p.name);
+                console.log('Daten repariert. Projekte:', this.projects.length);
+            },
+
+            getTodayString() {
+                return new Date().toISOString().split('T')[0];
+            },
+
+            checkMidnightReset() {
+                const today = this.getTodayString();
+                if (this.lastResetDate && this.lastResetDate !== today) {
+                    this.handleMidnightReset();
+                }
+            },
+
+            handleMidnightReset() {
+                if (this.activeTimer) {
+                    const entry = {
+                        id: Date.now().toString(),
+                        projectId: this.activeTimer.projectId,
+                        userId: this.activeTimer.userId,
+                        startTime: this.activeTimer.startTime,
+                        endTime: Date.now(),
+                        duration: Date.now() - this.activeTimer.startTime,
+                        date: this.lastResetDate,
+                        isManual: false
+                    };
+                    this.allEntries.push(entry);
+                    this.activeTimer = null;
+                } else if (this.dailyEntries.length > 0) {
+                    this.allEntries.push(...this.dailyEntries);
+                }
+                this.dailyEntries = [];
+                this.lastResetDate = this.getTodayString();
+                this.save();
+            },
+
+            async loadData() {
+                try {
+                    // Versuche zuerst von Firebase zu laden
+                    if (firebaseReady) {
+                        await this.loadFromFirebase();
+                    } else {
+                        // Fallback auf localStorage wenn Firebase nicht bereit ist
+                        this.loadFromLocalStorage();
+                    }
+                    this.lastResetDate = localStorage.getItem('lastResetDate') || this.getTodayString();
+                } catch (e) {
+                    console.error('Load error:', e);
+                    this.lastResetDate = this.getTodayString();
+                }
+            },
+
+            loadFromLocalStorage() {
+                this.projects = JSON.parse(localStorage.getItem('projects') || '[]');
+                this.teamMembers = JSON.parse(localStorage.getItem('teamMembers') || '[]');
+                this.currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+                this.userProjectVisibility = JSON.parse(localStorage.getItem('userProjectVisibility') || '{}');
+                this.dailyEntries = JSON.parse(localStorage.getItem('dailyEntries') || '[]');
+                this.allEntries = JSON.parse(localStorage.getItem('allEntries') || '[]');
+                this.activeTimer = JSON.parse(localStorage.getItem('activeTimer') || 'null');
+                console.log('Data loaded from localStorage');
+            },
+
+            async loadFromFirebase() {
+                try {
+                    // Load projects from Firebase - Firebase ist die Source of Truth
+                    const projectsSnap = await db.collection('projects').get();
+                    this.projects = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    // Load team members from Firebase - Firebase ist die Source of Truth
+                    const membersSnap = await db.collection('teamMembers').get();
+                    this.teamMembers = membersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    // Load entries from Firebase
+                    const entriesSnap = await db.collection('entries').get();
+                    const allEntriesFromFirebase = entriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    // Trenne dailyEntries und allEntries basierend auf dem heutigen Datum
+                    // UND filtere Einträge mit nicht-existierenden Projekten oder Nutzern
+                    const today = this.getTodayString();
+                    this.dailyEntries = allEntriesFromFirebase.filter(e => {
+                        const projectExists = this.projects.find(p => p.id === e.projectId);
+                        const userExists = this.teamMembers.find(u => u.id === e.userId);
+                        return e.date === today && projectExists && userExists;
+                    });
+                    this.allEntries = allEntriesFromFirebase.filter(e => {
+                        const projectExists = this.projects.find(p => p.id === e.projectId);
+                        const userExists = this.teamMembers.find(u => u.id === e.userId);
+                        return e.date !== today && projectExists && userExists;
+                    });
+                    
+                    // Validiere currentUser - wenn er nicht mehr in teamMembers existiert, setze auf null
+                    if (this.currentUser && !this.teamMembers.find(m => m.id === this.currentUser.id)) {
+                        this.currentUser = null;
+                        localStorage.removeItem('currentUser');
+                    } else {
+                        this.currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+                    }
+                    
+                    this.userProjectVisibility = JSON.parse(localStorage.getItem('userProjectVisibility') || '{}');
+                    this.activeTimer = JSON.parse(localStorage.getItem('activeTimer') || 'null');
+                    
+                    console.log('Data loaded from Firebase:', { projects: this.projects.length, members: this.teamMembers.length, entries: allEntriesFromFirebase.length });
+                } catch (error) {
+                    console.error('Firebase load error:', error);
+                    // Fallback auf localStorage
+                    this.loadFromLocalStorage();
+                }
+            },
+
+            save() {
+                // Speichere lokal
+                localStorage.setItem('projects', JSON.stringify(this.projects));
+                localStorage.setItem('teamMembers', JSON.stringify(this.teamMembers));
+                localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                localStorage.setItem('userProjectVisibility', JSON.stringify(this.userProjectVisibility));
+                localStorage.setItem('allEntries', JSON.stringify(this.allEntries));
+                localStorage.setItem('activeTimer', JSON.stringify(this.activeTimer));
+                localStorage.setItem('lastResetDate', this.lastResetDate);
+                
+                // Synchronisiere mit Firebase
+                if (firebaseReady) {
+                    this.syncToFirebase();
+                }
+            },
+
+            async syncToFirebase() {
+                try {
+                    // Lade zuerst aktuelle Daten von Firebase um orphaned Daten zu finden
+                    const currentProjectsSnap = await db.collection('projects').get();
+                    const firebaseProjectIds = new Set(currentProjectsSnap.docs.map(doc => doc.id));
+                    
+                    const currentMembersSnap = await db.collection('teamMembers').get();
+                    const firebaseMemberIds = new Set(currentMembersSnap.docs.map(doc => doc.id));
+                    
+                    // NICHT lokal löschen! Nur beim Hochladen filtern
+                    // Sync projects - nur neue oder bestehende
+                    for (let project of this.projects) {
+                        if (project && project.id && project.name) {
+                            await db.collection('projects').doc(project.id).set(project, { merge: true });
+                        }
+                    }
+                    
+                    // Sync team members - nur neue oder bestehende
+                    for (let member of this.teamMembers) {
+                        if (member && member.id && member.name) {
+                            await db.collection('teamMembers').doc(member.id).set(member, { merge: true });
+                        }
+                    }
+                    
+                    // Sync ALL entries (dailyEntries + allEntries kombiniert)
+                    // Filtere nur Einträge mit gültigen Projekten UND Usern
+                    const allEntriesCombined = [...this.dailyEntries, ...this.allEntries].filter(entry => {
+                        const projectExists = this.projects.find(p => p.id === entry.projectId);
+                        const userExists = this.teamMembers.find(u => u.id === entry.userId);
+                        return projectExists !== undefined && userExists !== undefined;
+                    });
+                    for (let entry of allEntriesCombined) {
+                        // Nutze eine eindeutige ID für jeden Eintrag
+                        const entryId = entry.id || `${entry.projectId}_${entry.userId}_${entry.startTime}`;
+                        await db.collection('entries').doc(entryId).set({
+                            ...entry,
+                            id: entryId
+                        }, { merge: true });
+                    }
+                    
+                    console.log('Data synced to Firebase');
+                } catch (error) {
+                    console.error('Firebase sync error:', error);
+                }
+            },
+
+            showTab(tab) {
+                this.currentView = tab;
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                event.target.classList.add('active');
+                ['projects-view', 'overview-view', 'history-view', 'team-view'].forEach(v => {
+                    document.getElementById(v).className = v === tab + '-view' ? '' : 'hidden';
+                });
+                this.render();
+            },
+
+            showUserSelect() {
+                const html = `
+                    <div class="modal" onclick="if(event.target.classList.contains('modal')) { document.getElementById('modal-container').innerHTML=''; }">
+                        <div class="modal-content">
+                            <h2 class="modal-title">Wer bist du?</h2>
+                            <p style="text-align: center; color: #6b7280; margin-bottom: 24px;">Wähle dein Profil aus</p>
+                            ${this.teamMembers.map(m => `
+                                <button class="user-select-btn" onclick="app.selectUser('${m.id}')">
+                                    <div class="user-avatar" style="width: 40px; height: 40px; font-size: 16px; background: ${m.color};">
+                                        ${m.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div style="flex: 1; text-align: left;">
+                                        <div style="font-weight: bold; font-size: 18px;">${m.name}</div>
+                                        ${m.hourlyRate > 0 ? `<div style="font-size: 14px; color: #6b7280;">${m.hourlyRate.toFixed(2)} €/h</div>` : ''}
+                                    </div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                document.getElementById('modal-container').innerHTML = html;
+            },
+
+            selectUser(userId) {
+                this.currentUser = this.teamMembers.find(m => m.id === userId);
+                this.save();
+                document.getElementById('modal-container').innerHTML = '';
+                this.render();
+            },
+
+            toggleProjectVisibility(projectId) {
+                if (!this.currentUser) return;
+                const key = `${this.currentUser.id}_${projectId}`;
+                this.userProjectVisibility[key] = !(this.userProjectVisibility[key] ?? true);
+                this.save();
+                this.render();
+            },
+
+            isProjectVisible(projectId) {
+                if (!this.currentUser) return true;
+                const key = `${this.currentUser.id}_${projectId}`;
+                return this.userProjectVisibility[key] ?? true;
+            },
+
+            addProject(name, note, budget, type) {
+                this.projects.push({
+                    id: Date.now().toString(),
+                    name: name.trim(),
+                    note: note.trim(),
+                    budget: parseFloat(budget) || 0,
+                    type: type || 'Extern',
+                    color: `hsl(${Math.random() * 360}, 70%, 60%)`
+                });
+                this.save();
+                this.render();
+            },
+
+            addManualEntry(projectId, hours, minutes, note) {
+                if (!this.currentUser || !projectId) {
+                    alert('Bitte wähle ein Teammitglied und Projekt aus!');
+                    return;
+                }
+                const totalMs = (parseInt(hours || 0) * 3600 + parseInt(minutes || 0) * 60) * 1000;
+                if (totalMs === 0) {
+                    alert('Bitte gib eine Dauer ein!');
+                    return;
+                }
+                const now = Date.now();
+                this.dailyEntries.push({
+                    id: Date.now().toString(),
+                    projectId,
+                    userId: this.currentUser.id,
+                    startTime: now - totalMs,
+                    endTime: now,
+                    duration: totalMs,
+                    date: this.getTodayString(),
+                    isManual: true,
+                    note: note.trim()
+                });
+                this.save();
+                this.render();
+            },
+
+            updateProjectBudget(projectId, budget) {
+                const project = this.projects.find(p => p.id === projectId);
+                if (project) {
+                    project.budget = parseFloat(budget) || 0;
+                    this.save();
+                    this.render();
+                }
+            },
+
+            addTeamMember(name, rate) {
+                const newMember = {
+                    id: Date.now().toString(),
+                    name: name.trim(),
+                    hourlyRate: parseFloat(rate) || 0,
+                    color: `hsl(${Math.random() * 360}, 70%, 60%)`
+                };
+                this.teamMembers.push(newMember);
+                if (this.teamMembers.length === 1) {
+                    this.currentUser = newMember;
+                }
+                this.save();
+                this.render();
+            },
+
+            updateMemberRate(memberId, rate) {
+                const member = this.teamMembers.find(m => m.id === memberId);
+                if (member) {
+                    member.hourlyRate = parseFloat(rate) || 0;
+                    if (this.currentUser?.id === memberId) {
+                        this.currentUser = member;
+                    }
+                    this.save();
+                    this.render();
+                }
+            },
+
+            showSubtractTimeForm(projectId) {
+                const project = this.projects.find(p => p.id === projectId);
+                const currentTime = this.getTodayProjectTime(projectId);
+                const html = `
+                    <div class="modal" onclick="if(event.target.classList.contains('modal')) { document.getElementById('modal-container').innerHTML=''; }">
+                        <div class="modal-content" style="max-width: 350px;">
+                            <h2 class="modal-title" style="font-size: 18px; margin-bottom: 16px;">Zeit abziehen</h2>
+                            <p style="color: #6b7280; margin-bottom: 12px;">Projekt: <strong>${project.name}</strong></p>
+                            <p style="color: #6b7280; margin-bottom: 16px;">Aktuelle Zeit: <strong>${this.formatDuration(currentTime)}</strong></p>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                                <input type="number" id="subtract-hours" placeholder="Stunden" min="0" value="0">
+                                <input type="number" id="subtract-minutes" placeholder="Minuten" min="0" max="59" value="0">
+                            </div>
+                            <div class="btn-group">
+                                <button class="secondary" onclick="document.getElementById('modal-container').innerHTML='';">Abbrechen</button>
+                                <button class="danger" onclick="app.subtractTime('${projectId}', document.getElementById('subtract-hours').value, document.getElementById('subtract-minutes').value);">Zeit abziehen</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('modal-container').innerHTML = html;
+            },
+
+            subtractTime(projectId, hours, minutes) {
+                const subtractMs = (parseInt(hours || 0) * 3600 + parseInt(minutes || 0) * 60) * 1000;
+                
+                if (subtractMs === 0) {
+                    alert('Bitte gib eine Zeit zum Abziehen ein!');
+                    return;
+                }
+                
+                // Filtere die dailyEntries für dieses Projekt und User
+                const projectEntries = this.dailyEntries.filter(e => 
+                    e.projectId === projectId && e.userId === this.currentUser.id
+                );
+                
+                if (projectEntries.length === 0) {
+                    alert('Keine Zeit erfasst für dieses Projekt!');
+                    return;
+                }
+                
+                // Subtrahiere von den dailyEntries
+                let toSubtract = subtractMs;
+                for (let i = projectEntries.length - 1; i >= 0 && toSubtract > 0; i--) {
+                    const entry = projectEntries[i];
+                    if (entry.duration <= toSubtract) {
+                        // Lösche den ganzen Entry
+                        toSubtract -= entry.duration;
+                        this.dailyEntries = this.dailyEntries.filter(e => e.id !== entry.id);
+                    } else {
+                        // Reduziere die Duration
+                        entry.duration -= toSubtract;
+                        toSubtract = 0;
+                    }
+                }
+                
+                // Wenn activeTimer das gleiche Projekt ist, stelle sicher dass die Zeit korrekt ist
+                if (this.activeTimer?.projectId === projectId) {
+                    // Neuberechnung der startTime
+                    const remaining = this.dailyEntries
+                        .filter(e => e.projectId === projectId && e.userId === this.currentUser.id)
+                        .reduce((sum, e) => sum + e.duration, 0);
+                    this.activeTimer.startTime = Date.now() - remaining;
+                }
+                
+                this.save();
+                document.getElementById('modal-container').innerHTML = '';
+                this.render();
+            },
+
+            showDeleteConfirm(message, onConfirm) {
+                const html = `
+                    <div class="modal">
+                        <div class="modal-content" style="max-width: 300px;">
+                            <h2 class="modal-title" style="font-size: 18px; margin-bottom: 24px;">Bestätigung</h2>
+                            <div style="text-align: center; color: #6b7280; margin-bottom: 24px;">${message}</div>
+                            <div class="btn-group">
+                                <button onclick="document.getElementById('modal-container').innerHTML=''; app.render();" style="flex: 1;">Abbrechen</button>
+                                <button class="danger" onclick="document.getElementById('modal-container').innerHTML=''; ${onConfirm}" style="flex: 1;">Löschen</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('modal-container').innerHTML = html;
+            },
+
+            deleteProject(id) {
+                console.log('deleteProject called with id:', id);
+                const project = this.projects.find(p => p.id === id);
+                const entriesToDelete = [...this.allEntries, ...this.dailyEntries].filter(e => e.projectId === id).length;
+                const message = `Projekt "${project.name}" wirklich löschen?${entriesToDelete > 0 ? `<br><strong style="color: #ef4444;">⚠️ ${entriesToDelete} Zeiteinträge werden ebenfalls gelöscht!</strong>` : ''}`;
+                this.showDeleteConfirm(message, `app.confirmDeleteProject('${id}')`);
+            },
+
+            confirmDeleteProject(id) {
+                console.log('Löschen bestätigt, lösche Projekt:', id);
+                
+                // Sammle alle Einträge dieses Projekts BEVOR wir es löschen
+                const entriesToDelete = [...this.allEntries, ...this.dailyEntries].filter(e => e.projectId === id);
+                
+                // Projekt aus projects löschen
+                this.projects = this.projects.filter(p => p.id !== id);
+                // Auch aus täglichen Einträgen löschen
+                this.dailyEntries = this.dailyEntries.filter(e => e.projectId !== id);
+                // Auch aus allen Einträgen löschen
+                this.allEntries = this.allEntries.filter(e => e.projectId !== id);
+                // Aktiven Timer löschen wenn nötig
+                if (this.activeTimer?.projectId === id) this.activeTimer = null;
+                this.showManualEntryForm = false;
+                this.showNewProjectForm = false;
+                this.save();
+                
+                // Lösche von Firebase - Projekt und ALLE zugehörigen Entries
+                if (firebaseReady) {
+                    db.collection('projects').doc(id).delete().catch(error => {
+                        console.error('Firebase delete error:', error);
+                    });
+                    
+                    // Lösche ALLE zugehörigen Entries von Firebase
+                    entriesToDelete.forEach(entry => {
+                        db.collection('entries').doc(entry.id).delete().catch(error => {
+                            console.error('Firebase entry delete error:', error);
+                        });
+                    });
+                    
+                    console.log(`Firebase: Projekt ${id} und ${entriesToDelete.length} Einträge gelöscht`);
+                }
+                
+                this.render();
+                console.log('Projekt gelöscht');
+            },
+
+            deleteProjectSafe(id, event) {
+                if (event) {
+                    event.stopPropagation();
+                }
+                this.deleteProject(id);
+            },
+
+            deleteMember(id) {
+                this.showDeleteConfirm('Teammitglied wirklich löschen?', `app.confirmDeleteMember('${id}')`);
+            },
+
+            confirmDeleteMember(id) {
+                this.teamMembers = this.teamMembers.filter(m => m.id !== id);
+                if (this.currentUser?.id === id) this.currentUser = null;
+                this.showAddTeamMemberForm = false;
+                this.save();
+                
+                // Lösche von Firebase
+                db.collection('teamMembers').doc(id).delete().catch(error => {
+                    console.error('Firebase delete error:', error);
+                });
+                
+                this.render();
+            },
+
+            startTimer(projectId) {
+                if (!this.currentUser) {
+                    alert('Bitte wähle zuerst ein Teammitglied aus!');
+                    this.showUserSelect();
+                    return;
+                }
+                if (this.activeTimer) this.stopTimer();
+                
+                // Berechne die bereits verstrichene Zeit für dieses Projekt heute
+                const alreadyLogged = this.dailyEntries
+                    .filter(e => e.projectId === projectId && e.userId === this.currentUser.id)
+                    .reduce((sum, e) => sum + e.duration, 0);
+                
+                // startTime so setzen, dass die bereits verstrichene Zeit berücksichtigt wird
+                // Wenn 5h bereits geloggt sind, setzen wir startTime auf vor 5h
+                const startTime = Date.now() - alreadyLogged;
+                
+                this.activeTimer = { projectId, userId: this.currentUser.id, startTime: startTime };
+                this.save();
+                this.render();
+            },
+
+            stopTimer() {
+                if (!this.activeTimer) return;
+                
+                // Lösche alte dailyEntries für dieses Projekt vom gleichen User (um Duplikate zu vermeiden)
+                this.dailyEntries = this.dailyEntries.filter(e => 
+                    !(e.projectId === this.activeTimer.projectId && e.userId === this.activeTimer.userId)
+                );
+                
+                // Speichere die neue Session mit der gesamten Zeit seit dem Start
+                this.dailyEntries.push({
+                    id: Date.now().toString(),
+                    projectId: this.activeTimer.projectId,
+                    userId: this.activeTimer.userId,
+                    startTime: this.activeTimer.startTime,
+                    endTime: Date.now(),
+                    duration: Date.now() - this.activeTimer.startTime,
+                    date: this.getTodayString(),
+                    isManual: false
+                });
+                this.activeTimer = null;
+                this.save();
+                this.render();
+            },
+
+            formatDuration(ms) {
+                const s = Math.floor(ms / 1000);
+                const m = Math.floor(s / 60);
+                const h = Math.floor(m / 60);
+                return `${h.toString().padStart(2, '0')}:${(m % 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+            },
+
+            updateTimers() {
+                // Update nur die Timer-Anzeigen, NICHT das komplette HTML
+                if (this.activeTimer) {
+                    // Finde alle Timer-Elemente und update sie
+                    document.querySelectorAll('.timer').forEach(el => {
+                        const projectId = el.getAttribute('data-project-id');
+                        if (projectId === this.activeTimer.projectId) {
+                            const elapsed = Date.now() - this.activeTimer.startTime;
+                            el.textContent = this.formatDuration(elapsed);
+                        }
+                    });
+                }
+            },
+
+
+            getTodayProjectTime(projectId) {
+                const entries = this.dailyEntries.filter(e => e.projectId === projectId && (!this.currentUser || e.userId === this.currentUser.id));
+                const total = entries.reduce((sum, e) => sum + e.duration, 0);
+                const active = this.activeTimer?.projectId === projectId && this.activeTimer?.userId === this.currentUser?.id ? Date.now() - this.activeTimer.startTime : 0;
+                return total + active;
+            },
+
+            getProjectStats(projectId) {
+                const projectEntries = [...this.allEntries, ...this.dailyEntries].filter(e => e.projectId === projectId);
+                let totalMs = projectEntries.reduce((sum, e) => sum + e.duration, 0);
+                if (this.activeTimer?.projectId === projectId) {
+                    totalMs += Date.now() - this.activeTimer.startTime;
+                }
+                const totalHours = totalMs / 3600000;
+                let totalCost = 0;
+                const memberHours = {};
+                projectEntries.forEach(entry => {
+                    const member = this.teamMembers.find(m => m.id === entry.userId);
+                    if (member) {
+                        const hours = entry.duration / 3600000;
+                        memberHours[member.id] = (memberHours[member.id] || 0) + hours;
+                        if (member.hourlyRate) totalCost += hours * member.hourlyRate;
+                    }
+                });
+                if (this.activeTimer?.projectId === projectId) {
+                    const member = this.teamMembers.find(m => m.id === this.activeTimer.userId);
+                    if (member) {
+                        const hours = (Date.now() - this.activeTimer.startTime) / 3600000;
+                        memberHours[member.id] = (memberHours[member.id] || 0) + hours;
+                        if (member.hourlyRate) totalCost += hours * member.hourlyRate;
+                    }
+                }
+                return { totalHours, totalCost, memberHours };
+            },
+
+            deleteEntry(id) {
+                // Lösche aus beiden Arrays
+                this.allEntries = this.allEntries.filter(e => e.id !== id);
+                this.dailyEntries = this.dailyEntries.filter(e => e.id !== id);
+                this.save();
+                // Synchronisiere mit Firebase
+                db.collection('entries').doc(id).delete().catch(error => {
+                    console.error('Firebase delete error:', error);
+                });
+                this.render();
+            },
+
+            async exportXLSX() {
+                // Kombiniere dailyEntries und allEntries und filtere gelöschte Projekte
+                const allData = [...this.dailyEntries, ...this.allEntries].filter(entry => {
+                    const project = this.projects.find(p => p.id === entry.projectId);
+                    return project !== undefined; // Nur Einträge mit existierenden Projekten
+                });
+                
+                if (allData.length === 0) {
+                    alert('Keine Daten zum Exportieren!');
+                    return;
+                }
+                
+                // Formatiere Daten für Excel
+                const data = allData.map(entry => {
+                    const project = this.projects.find(p => p.id === entry.projectId);
+                    const user = this.teamMembers.find(m => m.id === entry.userId);
+                    const hours = entry.duration / 3600000;
+                    const cost = user?.hourlyRate ? hours * user.hourlyRate : 0;
+                    return [
+                        entry.date || new Date(entry.startTime).toISOString().split('T')[0],
+                        project?.name || 'Unbekannt',
+                        entry.note || '',
+                        user?.name || 'Unbekannt',
+                        user?.hourlyRate?.toFixed(2) || '0.00',
+                        new Date(entry.startTime).toLocaleString('de-DE'),
+                        new Date(entry.endTime).toLocaleString('de-DE'),
+                        this.formatDuration(entry.duration),
+                        hours.toFixed(2),
+                        cost.toFixed(2),
+                        entry.isManual ? 'Manuell' : 'Timer'
+                    ];
+                });
+                
+                try {
+                    // Erstelle Excel-Workbook
+                    const workbook = new ExcelJS.Workbook();
+                    const worksheet = workbook.addWorksheet('Zeiterfassung');
+                    
+                    // Füge Header hinzu
+                    const headers = ['Datum', 'Projekt', 'Notiz', 'Mitarbeiter', 'Stundensatz (€)', 'Start', 'Ende', 'Dauer', 'Dauer (Stunden)', 'Kosten (€)', 'Art'];
+                    worksheet.addRow(headers);
+                    
+                    // Formatiere Header
+                    const headerRow = worksheet.getRow(1);
+                    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } };
+                    headerRow.alignment = { horizontal: 'center', vertical: 'center' };
+                    
+                    // Füge Daten hinzu
+                    data.forEach(row => {
+                        worksheet.addRow(row);
+                    });
+                    
+                    // Passe Spaltenbreiten an
+                    worksheet.columns = [
+                        { width: 12 },
+                        { width: 20 },
+                        { width: 20 },
+                        { width: 15 },
+                        { width: 15 },
+                        { width: 20 },
+                        { width: 20 },
+                        { width: 12 },
+                        { width: 15 },
+                        { width: 12 },
+                        { width: 12 }
+                    ];
+                    
+                    // Speichere Datei
+                    const buffer = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Zeiterfassung_${new Date().toISOString().split('T')[0]}.xlsx`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                } catch (error) {
+                    console.error('Export error:', error);
+                    alert('Fehler beim Exportieren: ' + error.message);
+                }
+            },
+
+            async syncNow() {
+                try {
+                    await this.syncToFirebase();
+                    alert('✅ Daten erfolgreich synchronisiert!');
+                } catch (error) {
+                    alert('❌ Sync fehlgeschlagen: ' + error.message);
+                }
+            },
+
+            clearLocalData() {
+                if (confirm('Alle lokalen Daten löschen und neu von Firebase laden? Das kann bei Synchronisierungsproblemen helfen.')) {
+                    localStorage.clear();
+                    location.reload();
+                }
+            },
+
+            render() {
+                this.renderCurrentUser();
+                if (this.currentView === 'projects') this.renderProjects();
+                if (this.currentView === 'overview') this.renderOverview();
+                if (this.currentView === 'history') this.renderHistory();
+                if (this.currentView === 'team') this.renderTeam();
+            },
+
+            renderCurrentUser() {
+                const el = document.getElementById('current-user-display');
+                if (this.currentUser) {
+                    el.innerHTML = `
+                        <div class="user-badge">
+                            <div class="user-avatar" style="background: ${this.currentUser.color};">
+                                ${this.currentUser.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span class="user-name">${this.currentUser.name}</span>
+                            <button class="small" style="padding: 4px 8px; font-size: 10px;" onclick="app.showUserSelect()">wechseln</button>
+                        </div>
+                    `;
+                } else if (this.teamMembers.length > 0) {
+                    // Zeige Benutzerauswahl wenn noch kein Benutzer ausgewählt
+                    el.innerHTML = `<button onclick="app.showUserSelect()" style="background: #4f46e5; padding: 8px 16px; font-size: 12px; color: white;">👤 Benutzer wählen</button>`;
+                } else {
+                    el.innerHTML = '';
+                }
+            },
+
+            renderProjects() {
+                const sorted = [...this.projects].sort((a, b) => a.name.localeCompare(b.name));
+                const visible = sorted.filter(p => this.isProjectVisible(p.id));
+                const hidden = sorted.filter(p => !this.isProjectVisible(p.id));
+
+                let html = visible.map(p => {
+                    const isActive = this.activeTimer?.projectId === p.id && this.activeTimer?.userId === this.currentUser?.id;
+                    const time = this.getTodayProjectTime(p.id);
+                    return `
+                        <div class="project">
+                            <div class="project-header">
+                                <div class="project-name">
+                                    <span style="color: ${p.color}; font-size: 12px;">●</span>
+                                    <span>${p.name}</span>
+                                    <span style="font-size: 11px; background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">${p.type || 'Extern'}</span>
+                                    <div class="timer" data-project-id="${p.id}">${this.formatDuration(time)}</div>
+                                </div>
+                                <div style="display: flex; gap: 4px;">
+                                    <button class="icon-btn small" title="Zeit abziehen" onclick="app.showSubtractTimeForm('${p.id}')">➖</button>
+                                    <button class="icon-btn danger" onclick="app.toggleProjectVisibility('${p.id}')">👁️</button>
+                                    <button class="icon-btn danger" onclick="app.deleteProject('${p.id}')">🗑️</button>
+                                </div>
+                            </div>
+                            ${p.note ? `<div class="project-note">${p.note}</div>` : ''}
+                            <button class="${isActive ? 'stop' : 'start'}" style="width: 100%; margin-top: 8px;" onclick="app.${isActive ? 'stopTimer()' : `startTimer('${p.id}')`}">
+                                ${isActive ? '⏹️ Stop' : '▶️ Start'}
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+
+                if (hidden.length > 0) {
+                    html += `
+                        <div class="card">
+                            <h3>Ausgeblendete Projekte</h3>
+                            ${hidden.map(p => `
+                                <div style="display: flex; align-items: center; justify-between; padding: 8px; background: #f9fafb; border-radius: 8px; margin-bottom: 4px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: ${p.color}">●</span>
+                                        <span style="font-size: 14px;">${p.name}</span>
+                                    </div>
+                                    <button class="small" onclick="app.toggleProjectVisibility('${p.id}')">👁️ Einblenden</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                html += `
+                    <div class="card">
+                        <div class="btn-group">
+                            <button class="add" onclick="app.showManualEntryForm = !app.showManualEntryForm; app.render();" style="flex: 1;">⏱️ Manuelle Buchung</button>
+                            <button class="add" onclick="app.showNewProjectForm = !app.showNewProjectForm; app.render();" style="flex: 1;">➕ Neues Projekt</button>
+                        </div>
+                        <div class="${this.showManualEntryForm ? '' : 'hidden'}" style="margin-top: 12px;">
+                            <h3>Manuelle Zeitbuchung</h3>
+                            <select id="manual-project">
+                                <option value="">Projekt wählen...</option>
+                                ${sorted.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                            </select>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <input type="number" id="manual-hours" placeholder="Stunden" min="0">
+                                <input type="number" id="manual-minutes" placeholder="Minuten" min="0" max="59">
+                            </div>
+                            <input type="text" id="manual-note" placeholder="Notiz (optional)">
+                            <div class="btn-group">
+                                <button onclick="app.addManualEntry(document.getElementById('manual-project').value, document.getElementById('manual-hours').value, document.getElementById('manual-minutes').value, document.getElementById('manual-note').value); document.getElementById('manual-project').value=''; document.getElementById('manual-hours').value=''; document.getElementById('manual-minutes').value=''; document.getElementById('manual-note').value=''; app.showManualEntryForm = false; app.render();">Buchen</button>
+                                <button class="secondary" onclick="app.showManualEntryForm = false; document.getElementById('manual-project').value=''; document.getElementById('manual-hours').value=''; document.getElementById('manual-minutes').value=''; document.getElementById('manual-note').value=''; app.render();">Abbrechen</button>
+                            </div>
+                        </div>
+                        <div class="${this.showNewProjectForm ? '' : 'hidden'}" style="margin-top: 12px;">
+                            <h3>Neues Projekt</h3>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+                                <button onclick="app.newProjectType = 'Extern'; app.render();" style="background: ${this.newProjectType === 'Extern' ? '#4f46e5' : '#e5e7eb'}; color: ${this.newProjectType === 'Extern' ? 'white' : '#1f2937'}; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🌐 Extern</button>
+                                <button onclick="app.newProjectType = 'Retainer'; app.render();" style="background: ${this.newProjectType === 'Retainer' ? '#4f46e5' : '#e5e7eb'}; color: ${this.newProjectType === 'Retainer' ? 'white' : '#1f2937'}; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">📎 Retainer</button>
+                                <button onclick="app.newProjectType = 'Intern'; app.render();" style="background: ${this.newProjectType === 'Intern' ? '#4f46e5' : '#e5e7eb'}; color: ${this.newProjectType === 'Intern' ? 'white' : '#1f2937'}; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🎥 Intern</button>
+                            </div>
+                            <input type="text" id="new-project-name" placeholder="Projektname">
+                            <textarea id="new-project-note" placeholder="Notiz (optional)" rows="2"></textarea>
+                            ${this.newProjectType === 'Extern' ? `<input type="number" id="new-project-budget" placeholder="Budget in €" step="0.01" required>` : ''}
+                            <div class="btn-group">
+                                <button onclick="app.addProject(document.getElementById('new-project-name').value, document.getElementById('new-project-note').value, document.getElementById('new-project-budget')?.value || 0, app.newProjectType); document.getElementById('new-project-name').value=''; document.getElementById('new-project-note').value=''; if(document.getElementById('new-project-budget')) document.getElementById('new-project-budget').value=''; app.newProjectType = 'Extern'; app.showNewProjectForm = false; app.render();">Hinzufügen</button>
+                                <button class="secondary" onclick="app.showNewProjectForm = false; document.getElementById('new-project-name').value=''; document.getElementById('new-project-note').value=''; if(document.getElementById('new-project-budget')) document.getElementById('new-project-budget').value=''; app.newProjectType = 'Extern'; app.render();">Abbrechen</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('project-list').innerHTML = html || '<div class="card"><p style="text-align: center; color: #6b7280;">Noch keine Projekte</p></div>';
+            },
+
+            renderOverview() {
+                const sorted = [...this.projects].sort((a, b) => a.name.localeCompare(b.name));
+                
+                // Filtere nach Suchquery
+                const filtered = sorted.filter(p => 
+                    p.name.toLowerCase().includes(this.overviewSearchQuery.toLowerCase())
+                );
+                
+                // Suchfeld HTML
+                let html = `
+                    <div class="card">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="overview-search" placeholder="🔍 Projekt suchen..." value="${this.overviewSearchQuery}" 
+                                   onkeyup="app.overviewSearchQuery = document.getElementById('overview-search').value; app.render();" 
+                                   style="flex: 1; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px;">
+                            ${this.overviewSearchQuery ? `<button onclick="app.overviewSearchQuery = ''; app.render();" style="padding: 8px 12px; background: #ef4444;">✕</button>` : ''}
+                        </div>
+                        ${filtered.length === 0 && this.overviewSearchQuery ? `<p style="text-align: center; color: #6b7280; margin-top: 12px;">Keine Projekte gefunden</p>` : ''}
+                    </div>
+                `;
+                
+                html += filtered.map(p => {
+                    const stats = this.getProjectStats(p.id);
+                    const budgetUsed = p.budget > 0 ? (stats.totalCost / p.budget) * 100 : 0;
+                    const isOverBudget = budgetUsed > 100;
+                    const isExpanded = this.expandedProjects[p.id];
+
+                    // Gruppiere Einträge pro Projekt nach Datum
+                    const projectEntries = [...this.dailyEntries, ...this.allEntries].filter(e => e.projectId === p.id);
+                    const entriesByDate = {};
+                    projectEntries.forEach(entry => {
+                        const date = entry.date || new Date(entry.startTime).toISOString().split('T')[0];
+                        if (!entriesByDate[date]) entriesByDate[date] = [];
+                        entriesByDate[date].push(entry);
+                    });
+
+                    return `
+                        <div class="card">
+                            <div class="expandable" onclick="app.expandedProjects['${p.id}'] = !app.expandedProjects['${p.id}']; app.render();">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: ${p.color}">●</span>
+                                        <h3 style="margin: 0;">${p.name}</h3>
+                                    </div>
+                                    <button class="icon-btn" style="background: transparent; color: #4b5563;">${isExpanded ? '▲' : '▼'}</button>
+                                </div>
+                                ${p.budget > 0 ? `
+                                    <div>
+                                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+                                            <span>Budget-Verbrauch</span>
+                                            <span style="font-weight: bold; color: ${isOverBudget ? '#ef4444' : '#4f46e5'};">${budgetUsed.toFixed(1)}%</span>
+                                        </div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill ${isOverBudget ? 'red' : budgetUsed > 80 ? 'orange' : 'green'}" style="width: ${Math.min(budgetUsed, 100)}%;"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            ${isExpanded ? `
+                                <div class="expand-content">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                        <div>
+                                            <div class="stats"><strong>Arbeitsstunden:</strong> ${stats.totalHours.toFixed(2)} h</div>
+                                            <div class="stats"><strong>Verbrauchte Kosten:</strong> ${stats.totalCost.toFixed(2)} €</div>
+                                        </div>
+                                        <button class="danger" onclick="app.deleteProjectSafe('${p.id}', event)">🗑️ Löschen</button>
+                                    </div>
+                                    
+                                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                                        <h3 style="font-size: 12px; margin-bottom: 8px;">📅 Stunden nach Tagen:</h3>
+                                        ${Object.keys(entriesByDate).sort().reverse().map(date => {
+                                            const entries = entriesByDate[date];
+                                            const dayHours = entries.reduce((sum, e) => sum + e.duration / 3600000, 0);
+                                            const dayDate = new Date(date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                                            return `
+                                                <div style="margin-bottom: 8px; padding: 8px; background: #f9fafb; border-radius: 8px; font-size: 12px;">
+                                                    <div style="display: flex; justify-content: space-between;">
+                                                        <span style="font-weight: 600;">${dayDate}</span>
+                                                        <span style="color: #4f46e5; font-weight: bold;">${dayHours.toFixed(2)} h</span>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                    
+                                    ${p.budget > 0 ? `
+                                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                                            <div class="stats">
+                                                <strong>Projekt-Budget:</strong> ${p.budget.toFixed(2)} €
+                                                <button class="small" onclick="event.stopPropagation(); const val = prompt('Budget in €', '${p.budget}'); if(val) app.updateProjectBudget('${p.id}', val);">✏️</button>
+                                            </div>
+                                            <div class="stats"><strong>Verbleibend:</strong> <span style="color: ${isOverBudget ? '#ef4444' : '#10b981'}; font-weight: bold;">${(p.budget - stats.totalCost).toFixed(2)} €</span></div>
+                                        </div>
+                                    ` : `
+                                        <button class="small" onclick="event.stopPropagation(); const val = prompt('Budget in €', ''); if(val) app.updateProjectBudget('${p.id}', val);">+ Budget hinzufügen</button>
+                                    `}
+                                    
+                                    ${Object.keys(stats.memberHours).length > 0 ? `
+                                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                                            <h3 style="font-size: 12px;">👥 Stunden & Kosten pro Teammitglied:</h3>
+                                            ${Object.entries(stats.memberHours).sort((a, b) => b[1] - a[1]).map(([memberId, hours]) => {
+                                                const member = this.teamMembers.find(m => m.id === memberId);
+                                                const cost = member?.hourlyRate ? hours * member.hourlyRate : 0;
+                                                return member ? `
+                                                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin: 4px 0;">
+                                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                                            <span style="color: ${member.color}">●</span>
+                                                            <span>${member.name}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span style="font-weight: bold;">${hours.toFixed(2)} h</span>
+                                                            ${member.hourlyRate > 0 ? `<span style="color: #6b7280;"> (${cost.toFixed(2)} €)</span>` : ''}
+                                                        </div>
+                                                    </div>
+                                                ` : '';
+                                            }).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                if (filtered.length === 0 && !this.overviewSearchQuery) {
+                    html += '<div class="card"><p style="text-align: center; color: #6b7280;">Noch keine Projekte</p></div>';
+                }
+                document.getElementById('overview-list').innerHTML = html;
+            },
+
+            renderHistory() {
+                const grouped = this.allEntries.reduce((acc, entry) => {
+                    const date = entry.date || new Date(entry.startTime).toISOString().split('T')[0];
+                    if (!acc[date]) acc[date] = [];
+                    acc[date].push(entry);
+                    return acc;
+                }, {});
+
+                const sortedDates = Object.keys(grouped).sort().reverse();
+
+                let html = sortedDates.map(date => {
+                    return `
+                        <div class="date-group">
+                            <div class="date-header">
+                                ${new Date(date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                            </div>
+                            ${grouped[date].map(entry => {
+                                const project = this.projects.find(p => p.id === entry.projectId);
+                                const user = this.teamMembers.find(m => m.id === entry.userId);
+                                return `
+                                    <div class="entry">
+                                        <div class="entry-header">
+                                            <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+                                                ${project ? `<span style="color: ${project.color}; font-size: 10px;">●</span>` : ''}
+                                                <span class="entry-project">${project?.name || 'Gelöscht'}</span>
+                                                ${user ? `<span style="font-size: 12px; color: #6b7280;">(${user.name})</span>` : ''}
+                                                ${entry.isManual ? '<span style="font-size: 10px; background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px;">M</span>' : ''}
+                                                <span class="entry-duration">${this.formatDuration(entry.duration)}</span>
+                                            </div>
+                                            <button class="icon-btn danger" onclick="app.deleteEntry('${entry.id}')">🗑️</button>
+                                        </div>
+                                        ${entry.note ? `<div class="entry-note">${entry.note}</div>` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }).join('');
+
+                document.getElementById('history-list').innerHTML = html || '<p style="text-align: center; color: #6b7280; padding: 24px;">Noch keine Einträge</p>';
+            },
+
+            renderTeam() {
+                let html = this.teamMembers.map(m => {
+                    const memberId = m.id;
+                    const isExpanded = this.expandedProjects[`member_${memberId}`];
+                    
+                    // Sammle alle Einträge für dieses Teammitglied
+                    const memberEntries = [...this.dailyEntries, ...this.allEntries].filter(e => e.userId === memberId);
+                    
+                    // Gruppiere nach Datum
+                    const entriesByDate = {};
+                    memberEntries.forEach(entry => {
+                        const date = entry.date || new Date(entry.startTime).toISOString().split('T')[0];
+                        if (!entriesByDate[date]) entriesByDate[date] = [];
+                        entriesByDate[date].push(entry);
+                    });
+                    
+                    const sortedDates = Object.keys(entriesByDate).sort().reverse();
+                    
+                    return `
+                        <div class="member-card">
+                            <div class="member-avatar" style="background: ${m.color};">
+                                ${m.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div class="member-info">
+                                <div class="member-name">${m.name}</div>
+                                ${this.currentUser?.id === m.id ? '<div style="font-size: 12px; color: #4f46e5; font-weight: 600;">Aktuell aktiv</div>' : ''}
+                                <div class="member-rate">
+                                    ${m.hourlyRate > 0 ? `${m.hourlyRate.toFixed(2)} €/h` : 'Kein Stundensatz'}
+                                    <button class="small" style="margin-left: 8px;" onclick="const val = prompt('Stundensatz in €', '${m.hourlyRate}'); if(val !== null) app.updateMemberRate('${m.id}', val);">✏️</button>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                ${sortedDates.length > 0 ? `
+                                    <button class="icon-btn" onclick="app.expandedProjects['member_${memberId}'] = !app.expandedProjects['member_${memberId}']; app.render();" style="background: #e0e7ff; color: #4338ca;">
+                                        ${isExpanded ? '▲' : '▼'}
+                                    </button>
+                                ` : ''}
+                                <button class="danger" onclick="app.deleteMember('${m.id}')">🗑️</button>
+                            </div>
+                        </div>
+                        ${isExpanded ? `
+                            <div style="margin-left: 16px; margin-bottom: 12px; padding: 12px; background: #f9fafb; border-radius: 8px; border-left: 4px solid ${m.color};">
+                                <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px;">Buchungen nach Tagen:</div>
+                                ${sortedDates.map(date => {
+                                    const entries = entriesByDate[date];
+                                    const dayDate = new Date(date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+                                    
+                                    // Gruppiere Projekte pro Tag
+                                    const projectsByDay = {};
+                                    entries.forEach(entry => {
+                                        const project = this.projects.find(p => p.id === entry.projectId);
+                                        const projectName = project?.name || 'Gelöscht';
+                                        if (!projectsByDay[projectName]) projectsByDay[projectName] = { hours: 0, cost: 0, entries: [] };
+                                        projectsByDay[projectName].hours += entry.duration / 3600000;
+                                        projectsByDay[projectName].cost += project?.id ? (entry.duration / 3600000) * m.hourlyRate : 0;
+                                        projectsByDay[projectName].entries.push(entry);
+                                    });
+                                    
+                                    return `
+                                        <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 6px;">
+                                            <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">${dayDate}</div>
+                                            ${Object.entries(projectsByDay).map(([projectName, data]) => {
+                                                const project = this.projects.find(p => p.id === data.entries[0]?.projectId);
+                                                return `
+                                                    <div style="font-size: 11px; padding: 4px 0; display: flex; justify-content: space-between;">
+                                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                                            ${project ? `<span style="color: ${project.color}; font-size: 10px;">●</span>` : ''}
+                                                            <span>${projectName}</span>
+                                                        </div>
+                                                        <span style="font-weight: 600; color: #4f46e5;">
+                                                            ${data.hours.toFixed(2)}h
+                                                            ${m.hourlyRate > 0 ? `<span style="color: #6b7280;"> (${data.cost.toFixed(2)} €)</span>` : ''}
+                                                        </span>
+                                                    </div>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : ''}
+                    `;
+                }).join('');
+
+                html += `
+                    <div class="card">
+                        <button class="add" onclick="app.showAddTeamMemberForm = !app.showAddTeamMemberForm; app.render();">➕ Teammitglied hinzufügen</button>
+                        <div class="${this.showAddTeamMemberForm ? '' : 'hidden'}" style="margin-top: 12px;">
+                            <h3>Neues Teammitglied</h3>
+                            <input type="text" id="new-member-name" placeholder="Name">
+                            <input type="number" id="new-member-rate" placeholder="Stundensatz in € (optional)" step="0.01">
+                            <div class="btn-group">
+                                <button onclick="app.addTeamMember(document.getElementById('new-member-name').value, document.getElementById('new-member-rate').value); document.getElementById('new-member-name').value=''; document.getElementById('new-member-rate').value=''; app.showAddTeamMemberForm = false; app.render();">Hinzufügen</button>
+                                <button class="secondary" onclick="app.showAddTeamMemberForm = false; document.getElementById('new-member-name').value=''; document.getElementById('new-member-rate').value=''; app.render();">Abbrechen</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('team-list').innerHTML = html;
+            }
+        };
+
+        // Start app
+        (async () => {
+            await app.init();
+        })();
+    </script>
+</body>
+</html>
